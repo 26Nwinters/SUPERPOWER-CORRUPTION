@@ -574,21 +574,8 @@
     color: var(--white);
     margin-bottom: 6px;
   }
-  .import-zone .iz-sub {
-    font-size: 0.85rem;
-    color: #555;
-    line-height: 1.5;
-  }
+  .import-zone .iz-sub { font-size: 0.85rem; color: #555; line-height: 1.5; }
   .import-zone.has-data .iz-sub { color: var(--green); }
-
-  .import-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
 
   .roster-preview {
     width: 100%;
@@ -713,11 +700,11 @@
       <div class="zigzag" style="margin-top:12px;"></div>
     </div>
 
-    <label class="import-zone" id="import-zone">
-      <input type="file" accept=".csv" id="csv-input">
+    <label class="import-zone" id="import-zone" for="csv-input">
+      <input type="file" accept=".csv" id="csv-input" style="display:none">
       <div class="iz-icon" id="iz-icon">📋</div>
       <div class="iz-title" id="iz-title">IMPORT GOOGLE FORM CSV</div>
-      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and drop it here — or click to browse</div>
+      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and click here to browse</div>
     </label>
 
     <div class="roster-preview" id="roster-preview">
@@ -1147,20 +1134,23 @@
   // ---- CSV IMPORT ----
   function handleCSV(event) {
     const file = event.target.files[0];
-    if (!file) return;
+    console.log('handleCSV fired', file);
+    if (!file) { alert('No file selected'); return; }
 
     const reader = new FileReader();
     reader.onload = function(e) {
       const text = e.target.result;
+      console.log('File contents:', text.substring(0, 200));
       const lines = text.trim().split('\n');
-      const dataLines = lines.slice(1); // skip header
+      console.log('Lines found:', lines.length);
+      const dataLines = lines.slice(1);
       const imported = [];
 
       dataLines.forEach(line => {
         const cols = parseCSVLine(line);
+        console.log('Parsed cols:', cols);
         if (cols.length < 2) return;
 
-        // Auto-detect if first col is a timestamp
         const looksLikeTimestamp = /^\d{1,2}[\/\-]/.test(cols[0].trim()) || /^\d{4}/.test(cols[0].trim());
         let name, p1, p2, p3;
         if (looksLikeTimestamp) {
@@ -1173,7 +1163,10 @@
         [p1, p2, p3].forEach(power => { if (power) imported.push({ name, power }); });
       });
 
+      console.log('Imported entries:', imported);
+
       if (imported.length === 0) {
+        alert('No data found — check the console for details.');
         document.getElementById('iz-title').textContent = 'NO DATA FOUND';
         document.getElementById('iz-sub').textContent = 'Make sure the CSV has Name + 3 Power columns.';
         return;
@@ -1253,7 +1246,14 @@
     showScreen('screen-wheel');
   }
 
-  document.getElementById('csv-input').addEventListener('change', handleCSV);
+  document.addEventListener('DOMContentLoaded', function() {
+    const csvInput = document.getElementById('csv-input');
+    if (csvInput) {
+      csvInput.addEventListener('change', handleCSV);
+    } else {
+      alert('csv-input element not found!');
+    }
+  });
 
   // ---- INIT ----
   drawWheel();
