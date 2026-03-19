@@ -718,11 +718,23 @@
       <button class="btn-start-game" id="btn-start-game" onclick="startGame()">LET'S GO!</button>
       <div class="start-hint" id="start-hint">Add at least one entry to start</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
-        <label class="btn-template" style="cursor:pointer;" for="csv-input">⬆ Import CSV</label>
-        <input type="file" id="csv-input" accept=".csv" style="display:none;">
+        <label class="btn-template" style="cursor:pointer;" onclick="document.getElementById('csv-input').click()">⬆ Import CSV</label>
+        <input type="file" id="csv-input" accept=".csv" style="display:none;position:absolute;width:0;height:0;overflow:hidden;">
         <button class="btn-template" onclick="openPasteModal()">📋 Paste CSV</button>
       </div>
+      <button class="btn-template" style="margin-top:8px;font-size:0.8rem;opacity:0.6;padding:8px 20px;" onclick="openCredits()">✨ Credits</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== CREDITS MODAL ===== -->
+<div class="overlay" id="overlay-credits">
+  <div class="power-card" style="max-width:400px;text-align:center;">
+    <div class="card-eyebrow">✨ CREDITS ✨</div>
+    <div style="font-family:'Bangers',cursive;font-size:1.6rem;color:var(--white);letter-spacing:3px;margin:16px 0 8px;">MADE BY</div>
+    <div style="font-family:'Permanent Marker',cursive;font-size:1.3rem;color:var(--yellow);margin-bottom:6px;">Lydia Rafferty</div>
+    <div style="font-family:'Permanent Marker',cursive;font-size:1.3rem;color:var(--yellow);margin-bottom:24px;">N.W.</div>
+    <button class="btn-continue" onclick="document.getElementById('overlay-credits').classList.remove('visible')">CLOSE</button>
   </div>
 </div>
 
@@ -1124,6 +1136,10 @@
   }
 
   // ---- PASTE MODAL ----
+  function openCredits() {
+    document.getElementById('overlay-credits').classList.add('visible');
+  }
+
   function openPasteModal() {
     document.getElementById('paste-input').value = '';
     document.getElementById('paste-error').style.display = 'none';
