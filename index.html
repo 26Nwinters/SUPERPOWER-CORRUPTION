@@ -574,21 +574,8 @@
     color: var(--white);
     margin-bottom: 6px;
   }
-  .import-zone .iz-sub {
-    font-size: 0.85rem;
-    color: #555;
-    line-height: 1.5;
-  }
+  .import-zone .iz-sub { font-size: 0.85rem; color: #555; line-height: 1.5; }
   .import-zone.has-data .iz-sub { color: var(--green); }
-
-  .import-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
 
   .roster-preview {
     width: 100%;
@@ -713,12 +700,12 @@
       <div class="zigzag" style="margin-top:12px;"></div>
     </div>
 
-    <label class="import-zone" id="import-zone">
-      <input type="file" accept=".csv" id="csv-input">
+    <div class="import-zone" id="import-zone" onclick="document.getElementById('csv-input').click()">
+      <input type="file" accept=".csv" id="csv-input" style="display:none">
       <div class="iz-icon" id="iz-icon">📋</div>
       <div class="iz-title" id="iz-title">IMPORT GOOGLE FORM CSV</div>
-      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and drop it here — or click to browse</div>
-    </label>
+      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and click here to browse</div>
+    </div>
 
     <div class="roster-preview" id="roster-preview">
       <div class="roster-label">LOADED ROSTER — <span id="roster-count">0</span> ENTRIES</div>
