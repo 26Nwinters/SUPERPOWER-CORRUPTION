@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superpower Corruption</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #FFE600;
+    --red: #E3001B;
+    --blue: #0057FF;
+    --green: #00C46A;
+    --dark: #0A0A0A;
+    --white: #FFFFFF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    font-family: 'Oswald', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,230,0,0.03) 40px, rgba(255,230,0,0.03) 41px),
+      repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,230,0,0.03) 40px, rgba(255,230,0,0.03) 41px);
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(circle, rgba(255,230,0,0.07) 1px, transparent 1px);
+    background-size: 18px 18px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .screen {
+    display: none;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    min-height: 100vh;
+  }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  /* ---- HEADER ---- */
+  .header { text-align: center; padding: 20px 16px 0; }
+  .header h1 {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(2.4rem, 7vw, 4.5rem);
+    color: var(--yellow);
+    letter-spacing: 4px;
+    text-shadow: 4px 4px 0 var(--red), 8px 8px 0 #000;
+    line-height: 1;
+  }
+  .header .subtitle {
+    font-family: 'Permanent Marker', cursive;
+    color: var(--white);
+    font-size: clamp(0.8rem, 2.2vw, 1rem);
+    letter-spacing: 2px;
+    margin-top: 5px;
+    opacity: 0.6;
+  }
+  .zigzag {
+    width: 180px; height: 10px;
+    background:
+      linear-gradient(135deg, var(--yellow) 25%, transparent 25%) -10px 0,
+      linear-gradient(225deg, var(--yellow) 25%, transparent 25%) -10px 0,
+      linear-gradient(315deg, var(--yellow) 25%, transparent 25%),
+      linear-gradient(45deg,  var(--yellow) 25%, transparent 25%);
+    background-size: 20px 10px;
+    margin: 7px auto 0;
+  }
+  .step-indicator {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Bangers', cursive; font-size: 0.82rem; letter-spacing: 2px;
+    color: #444; margin-top: 10px; justify-content: center;
+  }
+  .step-indicator .step { padding: 3px 10px; border: 2px solid #2a2a2a; }
+  .step-indicator .step.active { color: var(--yellow); border-color: var(--yellow); }
+  .step-indicator .step.done  { color: #2a2a2a; border-color: #1a1a1a; }
+  .step-indicator .sep { color: #2a2a2a; }
+
+  /* ---- WHEEL SCREEN ---- */
+  #screen-wheel { padding-bottom: 40px; gap: 20px; }
+
+  .main {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 24px;
+    width: 100%; max-width: 1100px; padding: 0 16px;
+  }
+  @media (min-width: 900px) {
+    .main { flex-direction: row; align-items: flex-start; justify-content: center; }
+  }
+
+  .wheel-section {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 14px; flex-shrink: 0;
+  }
+  .wheel-container {
+    position: relative;
+    width: min(460px, 88vw); height: min(460px, 88vw);
+  }
+  .wheel-container::before {
+    content: ''; position: absolute; inset: -8px;
+    border: 5px solid var(--yellow); border-radius: 50%;
+    box-shadow: 0 0 0 3px #000, 6px 6px 0 #000;
+    z-index: 2; pointer-events: none;
+  }
+  canvas#wheel {
+    width: 100%; height: 100%; border-radius: 50%;
+    cursor: pointer; display: block;
+    filter: drop-shadow(0 0 28px rgba(255,230,0,0.2));
+    transition: filter 0.3s;
+  }
+  canvas#wheel:hover { filter: drop-shadow(0 0 40px rgba(255,230,0,0.4)); }
+
+  .pointer {
+    position: absolute; top: 50%; right: -26px;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 20px solid transparent;
+    border-bottom: 20px solid transparent;
+    border-right: 42px solid var(--red);
+    filter: drop-shadow(0 2px 4px #000); z-index: 10;
+  }
+  .pointer::after {
+    content: ''; position: absolute; top: -16px; right: -46px;
+    width: 0; height: 0;
+    border-top: 16px solid transparent; border-bottom: 16px solid transparent;
+    border-right: 36px solid var(--yellow); z-index: -1;
+  }
+
+  .spin-btn {
+    font-family: 'Bangers', cursive; font-size: 1.7rem; letter-spacing: 3px;
+    color: var(--dark); background: var(--yellow); border: none;
+    padding: 11px 46px; cursor: pointer;
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%);
+    box-shadow: 4px 4px 0 #000; transition: transform 0.1s, background 0.2s;
+  }
+  .spin-btn:hover { background: #fff; transform: scale(1.04); }
+  .spin-btn:active { transform: scale(0.97); }
+  .spin-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .remaining-count {
+    font-family: 'Bangers', cursive; color: #555;
+    font-size: 0.9rem; letter-spacing: 2px; text-align: center;
+  }
+  .remaining-count span { color: var(--yellow); }
+
+  .btn-ghost {
+    font-family: 'Bangers', cursive; font-size: 0.95rem; letter-spacing: 2px;
+    background: transparent; color: #555; border: 2px solid #333;
+    padding: 5px 16px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+  }
+  .btn-ghost:hover { color: var(--yellow); border-color: var(--yellow); }
+
+  /* ---- SIDE PANEL ---- */
+  .side-panel { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 320px; }
+
+  .panel-box {
+    background: #111; border: 3px solid var(--yellow);
+    box-shadow: 5px 5px 0 #000; padding: 16px; position: relative;
+  }
+  .panel-box::before {
+    content: attr(data-label);
+    font-family: 'Bangers', cursive; font-size: 0.82rem; letter-spacing: 2px;
+    color: var(--dark); background: var(--yellow);
+    padding: 2px 10px; position: absolute; top: -13px; left: 12px;
+  }
+
+  .add-form { display: flex; flex-direction: column; gap: 9px; margin-top: 8px; }
+  .add-form input {
+    font-family: 'Oswald', sans-serif; font-size: 0.92rem;
+    background: #1a1a1a; border: 2px solid #444; color: var(--white);
+    padding: 7px 11px; outline: none; transition: border-color 0.2s;
+  }
+  .add-form input:focus { border-color: var(--yellow); }
+  .add-form input::placeholder { color: #555; }
+
+  .btn-add {
+    font-family: 'Bangers', cursive; font-size: 1.05rem; letter-spacing: 2px;
+    background: var(--blue); color: var(--white); border: 2px solid var(--white);
+    padding: 7px; cursor: pointer; box-shadow: 3px 3px 0 #000;
+    transition: transform 0.1s, background 0.2s;
+  }
+  .btn-add:hover { background: #0040cc; transform: scale(1.02); }
+
+  .power-list {
+    list-style: none; display: flex; flex-direction: column;
+    gap: 5px; max-height: 220px; overflow-y: auto;
+    margin-top: 8px; padding-right: 4px;
+  }
+  .power-list::-webkit-scrollbar { width: 4px; }
+  .power-list::-webkit-scrollbar-thumb { background: var(--yellow); }
+
+  .power-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #1a1a1a; border-left: 3px solid var(--blue);
+    padding: 5px 9px; gap: 7px; animation: slideIn 0.22s ease;
+  }
+  .power-item.used { border-left-color: #333; opacity: 0.38; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .power-item .pname { font-size: 0.88rem; color: var(--white); flex: 1; line-height: 1.2; }
+  .power-item .person-tag { font-size: 0.7rem; color: var(--yellow); font-family: 'Permanent Marker', cursive; white-space: nowrap; }
+  .power-item .del-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 0.8rem; padding: 0 2px; transition: color 0.2s; }
+  .power-item .del-btn:hover { color: var(--red); }
+  .empty-msg { color: #444; font-size: 0.82rem; font-style: italic; text-align: center; padding: 10px 0; }
+
+  .score-list {
+    list-style: none; display: flex; flex-direction: column;
+    gap: 5px; margin-top: 8px; max-height: 160px; overflow-y: auto;
+  }
+  .score-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 9px; background: #1a1a1a; border-left: 3px solid var(--red);
+  }
+  .score-item .sname { font-size: 0.88rem; color: var(--white); }
+  .score-item .spts { font-family: 'Bangers', cursive; font-size: 1.15rem; color: var(--yellow); letter-spacing: 1px; }
+
+  /* ---- POWER CARD OVERLAY ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s; padding: 20px;
+  }
+  .overlay.visible { opacity: 1; pointer-events: all; }
+
+  .power-card {
+    background: var(--dark); border: 5px solid var(--yellow);
+    box-shadow: 10px 10px 0 var(--red), 16px 16px 0 #000;
+    padding: 36px 40px; max-width: 500px; width: 100%; text-align: center;
+    transform: scale(0.82) rotate(-2deg);
+    transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .overlay.visible .power-card { transform: scale(1) rotate(0deg); }
+
+  .card-eyebrow { font-family: 'Permanent Marker', cursive; color: var(--yellow); font-size: 0.82rem; letter-spacing: 4px; margin-bottom: 8px; opacity: 0.8; }
+  .card-power-name {
+    font-family: 'Bangers', cursive; font-size: clamp(2.4rem, 8vw, 4rem);
+    color: var(--white); letter-spacing: 3px; text-shadow: 3px 3px 0 var(--red);
+    line-height: 1; margin-bottom: 12px;
+  }
+  .card-person { font-family: 'Permanent Marker', cursive; font-size: 1.1rem; color: var(--yellow); margin-bottom: 20px; }
+  .card-instruction {
+    font-size: 0.92rem; color: #999; line-height: 1.55;
+    border-top: 2px dashed #2a2a2a; padding-top: 16px; margin-bottom: 24px;
+  }
+  .card-instruction strong { color: var(--white); display: block; font-size: 1rem; margin-bottom: 4px; }
+
+  .btn-continue {
+    font-family: 'Bangers', cursive; font-size: 1.5rem; letter-spacing: 3px;
+    color: var(--dark); background: var(--green); border: none;
+    padding: 12px 40px; cursor: pointer;
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%);
+    box-shadow: 4px 4px 0 #000; transition: background 0.2s, transform 0.1s;
+  }
+  .btn-continue:hover { background: #00e87d; transform: scale(1.04); }
+
+  /* ---- VOTE SCREEN ---- */
+  #screen-vote { padding: 30px 16px 60px; gap: 0; }
+
+  .vote-inner {
+    width: 100%; max-width: 680px;
+    display: flex; flex-direction: column; gap: 24px; margin-top: 24px;
+  }
+
+  .power-banner {
+    background: #111; border: 3px solid var(--yellow);
+    box-shadow: 5px 5px 0 #000; padding: 16px 24px; text-align: center;
+  }
+  .power-banner .pb-label { font-family: 'Permanent Marker', cursive; color: var(--yellow); font-size: 0.78rem; letter-spacing: 3px; opacity: 0.7; margin-bottom: 4px; }
+  .power-banner .pb-power {
+    font-family: 'Bangers', cursive; font-size: clamp(1.8rem, 5vw, 2.8rem);
+    color: var(--white); letter-spacing: 3px; text-shadow: 2px 2px 0 var(--red); line-height: 1;
+  }
+  .power-banner .pb-person { font-family: 'Permanent Marker', cursive; font-size: 0.85rem; color: var(--yellow); margin-top: 4px; }
+
+  .vote-instruction {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+    color: #777; text-align: center; letter-spacing: 1px; line-height: 1.5;
+  }
+  .vote-instruction span { color: var(--yellow); }
+
+  /* PLAYER VOTE CARDS — big clickable */
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+  }
+
+  .player-vote-card {
+    background: #111;
+    border: 3px solid #2a2a2a;
+    box-shadow: 4px 4px 0 #000;
+    padding: 22px 12px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s, background 0.15s;
+    position: relative;
+    user-select: none;
+  }
+  .player-vote-card:hover {
+    border-color: var(--yellow);
+    transform: translateY(-4px);
+    box-shadow: 4px 8px 0 #000;
+  }
+  .player-vote-card:active { transform: translateY(-1px); }
+
+  .player-vote-card.selected {
+    border-color: var(--green);
+    background: #0a1a0f;
+    box-shadow: 0 0 0 2px var(--green), 4px 4px 0 #000;
+  }
+  .player-vote-card.winner {
+    border-color: var(--yellow);
+    background: #1a1500;
+    box-shadow: 0 0 0 3px var(--yellow), 0 0 30px rgba(255,230,0,0.18), 5px 5px 0 #000;
+    cursor: default;
+  }
+  .player-vote-card.locked { cursor: default; }
+  .player-vote-card.locked:not(.winner):not(.selected) { opacity: 0.45; }
+
+  .pvc-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #222;
+    border: 3px solid #333;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bangers', cursive;
+    font-size: 1.5rem;
+    color: var(--yellow);
+    transition: border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .player-vote-card.selected .pvc-avatar { border-color: var(--green); background: #0d2015; }
+  .player-vote-card.winner  .pvc-avatar { border-color: var(--yellow); background: #2a1f00; }
+
+  .pvc-name {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1rem;
+    color: var(--white);
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .pvc-pts {
+    font-family: 'Bangers', cursive;
+    font-size: 0.88rem;
+    letter-spacing: 1px;
+    color: #555;
+    transition: color 0.15s;
+  }
+  .player-vote-card.selected .pvc-pts { color: var(--green); }
+  .player-vote-card.winner  .pvc-pts { color: var(--yellow); }
+
+  .pvc-check {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 1.1rem; opacity: 0; transition: opacity 0.2s;
+  }
+  .player-vote-card.selected .pvc-check,
+  .player-vote-card.winner  .pvc-check { opacity: 1; }
+
+  /* Winner announcement */
+  .winner-announce {
+    display: none;
+    background: #1a1500;
+    border: 4px solid var(--yellow);
+    box-shadow: 8px 8px 0 #000;
+    padding: 22px 28px;
+    text-align: center;
+  }
+  .winner-announce.visible { display: block; animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .wa-label { font-family: 'Permanent Marker', cursive; color: var(--yellow); font-size: 0.8rem; letter-spacing: 3px; opacity: 0.75; margin-bottom: 4px; }
+  .wa-name {
+    font-family: 'Bangers', cursive; font-size: clamp(2rem, 6vw, 3rem);
+    color: var(--white); letter-spacing: 3px; text-shadow: 3px 3px 0 var(--yellow); line-height: 1; margin-bottom: 6px;
+  }
+  .wa-pts { font-family: 'Bangers', cursive; font-size: 1.2rem; color: var(--green); letter-spacing: 2px; }
+
+  /* Confirm button */
+  .btn-confirm {
+    font-family: 'Bangers', cursive; font-size: 1.3rem; letter-spacing: 2px;
+    color: var(--dark); background: var(--green); border: none;
+    padding: 10px 34px; cursor: pointer;
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%);
+    box-shadow: 4px 4px 0 #000; transition: background 0.2s, transform 0.1s;
+  }
+  .btn-confirm:hover { background: #00e87d; transform: scale(1.04); }
+  .btn-confirm:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .btn-back {
+    font-family: 'Bangers', cursive; font-size: 1.3rem; letter-spacing: 2px;
+    color: var(--dark); background: var(--yellow); border: none;
+    padding: 10px 34px; cursor: pointer;
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%);
+    box-shadow: 4px 4px 0 #000; transition: background 0.2s, transform 0.1s;
+    display: none;
+  }
+  .btn-back.visible { display: block; }
+  .btn-back:hover { background: #fff; transform: scale(1.04); }
+
+  .vote-btns { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+  /* ---- GAME OVER / WINNER SCREEN ---- */
+  #screen-gameover {
+    justify-content: center;
+    padding: 40px 16px 60px;
+    gap: 0;
+    text-align: center;
+  }
+
+  .gameover-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 580px;
+    width: 100%;
+  }
+
+  .gameover-trophy {
+    font-size: clamp(5rem, 15vw, 9rem);
+    animation: trophyBounce 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    filter: drop-shadow(0 0 30px rgba(255,230,0,0.5));
+  }
+  @keyframes trophyBounce {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+  }
+
+  .gameover-eyebrow {
+    font-family: 'Permanent Marker', cursive;
+    font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+    letter-spacing: 5px;
+    color: var(--yellow);
+    opacity: 0.75;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  .gameover-name {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(3.5rem, 12vw, 7rem);
+    color: var(--white);
+    letter-spacing: 5px;
+    text-shadow: 6px 6px 0 var(--red), 12px 12px 0 #000;
+    line-height: 1;
+    animation: fadeUp 0.5s 0.35s ease both;
+  }
+
+  .gameover-pts {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    color: var(--yellow);
+    letter-spacing: 3px;
+    animation: fadeUp 0.5s 0.5s ease both;
+  }
+
+  .gameover-final-scores {
+    width: 100%;
+    background: #111;
+    border: 3px solid var(--yellow);
+    box-shadow: 6px 6px 0 #000;
+    padding: 16px;
+    animation: fadeUp 0.5s 0.65s ease both;
+  }
+  .gameover-final-scores .gfs-label {
+    font-family: 'Bangers', cursive;
+    font-size: 1rem;
+    letter-spacing: 3px;
+    color: var(--yellow);
+    border-bottom: 2px solid #222;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .gfs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-left: 3px solid #333;
+    margin-bottom: 5px;
+    background: #1a1a1a;
+  }
+  .gfs-row.top { border-left-color: var(--yellow); background: #1a1500; }
+  .gfs-row .gfs-name { font-size: 0.95rem; color: var(--white); }
+  .gfs-row .gfs-pts { font-family: 'Bangers', cursive; font-size: 1.2rem; color: var(--yellow); letter-spacing: 1px; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .btn-play-again {
+    font-family: 'Bangers', cursive;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    color: var(--dark);
+    background: var(--yellow);
+    border: none;
+    padding: 13px 50px;
+    cursor: pointer;
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%);
+    box-shadow: 5px 5px 0 #000;
+    transition: background 0.2s, transform 0.1s;
+    animation: fadeUp 0.5s 0.8s ease both;
+  }
+  .btn-play-again:hover { background: #fff; transform: scale(1.05); }
+
+  /* ---- START SCREEN ---- */
+  #screen-start {
+    justify-content: center;
+    padding: 40px 16px 60px;
+    gap: 32px;
+  }
+
+  .start-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    max-width: 560px;
+    width: 100%;
+  }
+
+  .start-title {
+    text-align: center;
+  }
+  .start-title h1 {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(3.5rem, 12vw, 7rem);
+    color: var(--yellow);
+    letter-spacing: 5px;
+    text-shadow: 5px 5px 0 var(--red), 10px 10px 0 #000;
+    line-height: 1;
+  }
+  .start-title .start-sub {
+    font-family: 'Permanent Marker', cursive;
+    color: var(--white);
+    font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+    letter-spacing: 3px;
+    margin-top: 8px;
+    opacity: 0.6;
+  }
+
+  .import-zone {
+    width: 100%;
+    background: #111;
+    border: 3px dashed #333;
+    padding: 32px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .import-zone:hover { border-color: var(--yellow); background: #181800; }
+  .import-zone.has-data { border-color: var(--green); border-style: solid; background: #0d1a0f; }
+
+  .import-zone .iz-icon { font-size: 2.8rem; margin-bottom: 10px; }
+  .import-zone .iz-title {
+    font-family: 'Bangers', cursive;
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .import-zone .iz-sub {
+    font-size: 0.85rem;
+    color: #555;
+    line-height: 1.5;
+  }
+  .import-zone.has-data .iz-sub { color: var(--green); }
+
+  .import-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .roster-preview {
+    width: 100%;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .roster-preview.visible { display: flex; }
+
+  .roster-label {
+    font-family: 'Bangers', cursive;
+    font-size: 1rem;
+    letter-spacing: 3px;
+    color: var(--yellow);
+    border-bottom: 2px solid #222;
+    padding-bottom: 6px;
+  }
+
+  .roster-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .roster-list::-webkit-scrollbar { width: 4px; }
+  .roster-list::-webkit-scrollbar-thumb { background: var(--yellow); }
+
+  .roster-item {
+    background: #1a1a1a;
+    border-left: 3px solid var(--blue);
+    padding: 7px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.22s ease;
+  }
+  .roster-item .ri-name {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 0.85rem;
+    color: var(--yellow);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .roster-item .ri-power {
+    font-size: 0.88rem;
+    color: var(--white);
+    text-align: right;
+  }
+
+  .start-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .btn-start-game {
+    font-family: 'Bangers', cursive;
+    font-size: 2rem;
+    letter-spacing: 4px;
+    color: var(--dark);
+    background: var(--green);
+    border: none;
+    padding: 14px 60px;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0% 50%);
+    box-shadow: 5px 5px 0 #000;
+    transition: background 0.2s, transform 0.1s;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .btn-start-game.ready { opacity: 1; pointer-events: all; }
+  .btn-start-game.ready:hover { background: #00e87d; transform: scale(1.05); }
+
+  .start-hint {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 0.8rem;
+    color: #444;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  .start-hint.ready { color: var(--green); }
+
+  .btn-template {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    background: transparent;
+    color: #444;
+    border: 2px solid #222;
+    padding: 7px 18px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    text-transform: uppercase;
+  }
+  .btn-template:hover { color: var(--yellow); border-color: var(--yellow); }
+
+  /* ---- CONFETTI ---- */
+  .confetti-piece {
+    position: fixed; top: -10px; pointer-events: none; z-index: 999;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div class="screen active" id="screen-start">
+  <div class="start-inner">
+    <div class="start-title">
+      <h1>SUPERPOWER<br>CORRUPTION</h1>
+      <div class="start-sub">⚡ The Ultimate CTSO Icebreaker ⚡</div>
+      <div class="zigzag" style="margin-top:12px;"></div>
+    </div>
+
+    <label class="import-zone" id="import-zone">
+      <input type="file" accept=".csv" id="csv-input">
+      <div class="iz-icon" id="iz-icon">📋</div>
+      <div class="iz-title" id="iz-title">IMPORT GOOGLE FORM CSV</div>
+      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and drop it here — or click to browse</div>
+    </label>
+
+    <div class="roster-preview" id="roster-preview">
+      <div class="roster-label">LOADED ROSTER — <span id="roster-count">0</span> ENTRIES</div>
+      <ul class="roster-list" id="roster-list"></ul>
+    </div>
+
+    <div class="start-actions">
+      <button class="btn-start-game" id="btn-start-game" onclick="startGame()">LET'S GO!</button>
+      <div class="start-hint" id="start-hint">Import your CSV to unlock the game</div>
+      <button class="btn-template" onclick="downloadTemplate()">⬇ Download CSV Template</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WHEEL SCREEN ===== -->
+<div class="screen" id="screen-wheel">
+  <div class="header">
+    <h1>SUPERPOWER<br>CORRUPTION</h1>
+    <div class="subtitle">⚡ Spin · Corrupt · Vote · Win ⚡</div>
+    <div class="zigzag"></div>
+  </div>
+
+  <div class="main">
+    <div class="wheel-section">
+      <div class="wheel-container">
+        <canvas id="wheel" width="480" height="480"></canvas>
+        <div class="pointer"></div>
+      </div>
+      <div class="remaining-count" id="remaining-count"></div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="spin-btn" id="spin-btn" onclick="spinWheel()">SPIN!</button>
+        <button class="btn-ghost" onclick="resetUsed()">Reset Used</button>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="panel-box" data-label="ADD POWER">
+        <div class="add-form">
+          <input type="text" id="input-power" placeholder="Power (e.g. Super Speed)" maxlength="30">
+          <input type="text" id="input-person" placeholder="Chosen by (e.g. Alex)" maxlength="20">
+          <button class="btn-add" onclick="addPower()">+ ADD TO WHEEL</button>
+        </div>
+      </div>
+
+      <div class="panel-box" data-label="POWERS">
+        <ul class="power-list" id="power-list">
+          <li class="empty-msg">No powers yet — add some above!</li>
+        </ul>
+      </div>
+
+      <div class="panel-box" data-label="SCOREBOARD">
+        <ul class="score-list" id="score-list">
+          <li class="empty-msg">No players yet</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME OVER SCREEN ===== -->
+<div class="screen" id="screen-gameover">
+  <div class="gameover-inner">
+    <div class="gameover-trophy">🏆</div>
+    <div class="gameover-eyebrow">CORRUPTION CHAMPION</div>
+    <div class="gameover-name" id="gameover-name">—</div>
+    <div class="gameover-pts" id="gameover-pts">— POINTS</div>
+    <div class="gameover-final-scores">
+      <div class="gfs-label">FINAL SCORES</div>
+      <div id="gfs-rows"></div>
+    </div>
+    <button class="btn-play-again" onclick="playAgain()">PLAY AGAIN!</button>
+  </div>
+</div>
+
+<!-- ===== POWER CARD OVERLAY ===== -->
+<div class="overlay" id="overlay-power">
+  <div class="power-card">
+    <div class="card-eyebrow">⚡ POWER SELECTED ⚡</div>
+    <div class="card-power-name" id="card-power-name">—</div>
+    <div class="card-person" id="card-person">Chosen by —</div>
+    <div class="card-instruction">
+      <strong>Stand up and tell us why you chose this power!</strong>
+      When everyone's heard it, move to the corruption round — each person corrupts it, then vote for the best one.
+    </div>
+    <button class="btn-continue" onclick="goToVote()">VOTE FOR BEST CORRUPTION →</button>
+  </div>
+</div>
+
+<!-- ===== VOTE SCREEN ===== -->
+<div class="screen" id="screen-vote">
+  <div class="header">
+    <h1>VOTE!</h1>
+    <div class="subtitle">Tap the person with the best corruption</div>
+    <div class="zigzag"></div>
+    <div class="step-indicator">
+      <span class="step done">1. SPIN</span>
+      <span class="sep">›</span>
+      <span class="step done">2. CORRUPT</span>
+      <span class="sep">›</span>
+      <span class="step active">3. VOTE</span>
+    </div>
+  </div>
+
+  <div class="vote-inner">
+    <div class="power-banner">
+      <div class="pb-label">THE POWER</div>
+      <div class="pb-power" id="vote-power">—</div>
+      <div class="pb-person" id="vote-person">—</div>
+    </div>
+
+    <div class="vote-instruction">
+      Everyone did their corruption out loud —<br>
+      now <span>tap a name</span> to pick the winner, then confirm.
+    </div>
+
+    <div class="player-grid" id="player-grid"></div>
+
+    <div class="winner-announce" id="winner-announce">
+      <div class="wa-label">🏆 BEST CORRUPTION 🏆</div>
+      <div class="wa-name" id="wa-name">—</div>
+      <div class="wa-pts">+1 POINT AWARDED!</div>
+    </div>
+
+    <div class="vote-btns">
+      <button class="btn-confirm" id="btn-confirm" onclick="confirmWinner()" disabled>CROWN THE WINNER</button>
+      <button class="btn-back" id="btn-back" onclick="goToWheel()">← BACK TO WHEEL</button>
+      <button class="btn-ghost" onclick="goToWheel()" style="margin-left:auto;">Skip Round</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let powers = [];
+  let scores = {};
+  let isSpinning = false;
+  let currentAngle = 0;
+  let currentPower = null;
+  let selectedPlayer = null;
+
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const SIZE = 480, CX = SIZE / 2, CY = SIZE / 2;
+
+  const COLORS = [
+    '#E3001B','#0057FF','#FFE600','#00A86B','#FF6B00',
+    '#8B00FF','#00C8FF','#FF0099','#1DB954','#FF3D00',
+    '#C0392B','#2980B9','#D4AC0D','#1E8449','#BA4A00'
+  ];
+
+  // ---- SCREENS ----
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  function goToWheel() { showScreen('screen-wheel'); }
+
+  // ---- DRAW WHEEL ----
+  function drawWheel() {
+    const active = powers.filter(p => !p.used);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    if (active.length === 0) {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath(); ctx.arc(CX, CY, CX - 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#444';
+      ctx.font = 'bold 16px Oswald';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Add powers to spin!', CX, CY);
+      updateCount(); return;
+    }
+
+    const slice = (Math.PI * 2) / active.length;
+    active.forEach((p, i) => {
+      const start = currentAngle + i * slice;
+      const end = start + slice;
+      ctx.beginPath(); ctx.moveTo(CX, CY);
+      ctx.arc(CX, CY, CX - 4, start, end); ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+
+      ctx.save();
+      ctx.translate(CX, CY); ctx.rotate(start + slice / 2);
+      ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+      let fs = 14; ctx.font = `700 ${fs}px Oswald`;
+      while (ctx.measureText(p.name).width > CX - 38 && fs > 8) { fs--; ctx.font = `700 ${fs}px Oswald`; }
+      ctx.fillText(p.name, CX - 16, 5);
+      ctx.restore();
+    });
+
+    ctx.beginPath(); ctx.arc(CX, CY, 22, 0, Math.PI * 2);
+    ctx.fillStyle = '#0A0A0A'; ctx.fill();
+    ctx.strokeStyle = '#FFE600'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(CX, CY, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFE600'; ctx.fill();
+    updateCount();
+  }
+
+  function updateCount() {
+    const active = powers.filter(p => !p.used).length;
+    const total = powers.length;
+    const el = document.getElementById('remaining-count');
+    el.innerHTML = total === 0 ? '' : `<span>${active}</span> of <span>${total}</span> powers remaining`;
+  }
+
+  // ---- SPIN ----
+  function spinWheel() {
+    const active = powers.filter(p => !p.used);
+    if (active.length === 0 || isSpinning) return;
+    isSpinning = true;
+    document.getElementById('spin-btn').disabled = true;
+
+    const spins = (5 + Math.random() * 5) * Math.PI * 2;
+    const duration = 3500 + Math.random() * 1500;
+    const t0 = performance.now(), a0 = currentAngle;
+
+    function animate(now) {
+      const p = Math.min((now - t0) / duration, 1);
+      currentAngle = a0 + spins * (1 - Math.pow(1 - p, 4));
+      drawWheel();
+      if (p < 1) { requestAnimationFrame(animate); }
+      else {
+        isSpinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        resolveResult();
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function resolveResult() {
+    const active = powers.filter(p => !p.used);
+    if (active.length === 0) return;
+    const slice = (Math.PI * 2) / active.length;
+    let normalized = ((currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    let idx = Math.floor(((Math.PI * 2 - normalized) % (Math.PI * 2)) / slice) % active.length;
+
+    const picked = active[idx];
+    picked.used = true;
+    currentPower = picked;
+    drawWheel(); renderPowerList();
+
+    setTimeout(() => {
+      document.getElementById('card-power-name').textContent = picked.name.toUpperCase();
+      document.getElementById('card-person').textContent = `Chosen by ${picked.person}`;
+      document.getElementById('overlay-power').classList.add('visible');
+      launchConfetti();
+    }, 300);
+  }
+
+  // ---- VOTE SCREEN ----
+  function goToVote() {
+    document.getElementById('overlay-power').classList.remove('visible');
+
+    document.getElementById('vote-power').textContent = currentPower.name.toUpperCase();
+    document.getElementById('vote-person').textContent = `Chosen by ${currentPower.person}`;
+
+    selectedPlayer = null;
+    document.getElementById('btn-confirm').disabled = true;
+    document.getElementById('btn-back').classList.remove('visible');
+    document.getElementById('winner-announce').classList.remove('visible');
+
+    const grid = document.getElementById('player-grid');
+    const players = Object.keys(scores);
+
+    if (players.length === 0) {
+      grid.innerHTML = '<p style="color:#555;font-style:italic;font-size:0.9rem;text-align:center;padding:20px 0;">No players yet — add powers with names to track scores.</p>';
+      document.getElementById('btn-back').classList.add('visible');
+    } else {
+      grid.innerHTML = '';
+      players.forEach(name => {
+        const pts = scores[name] || 0;
+        const initial = name.charAt(0).toUpperCase();
+        const card = document.createElement('div');
+        card.className = 'player-vote-card';
+        card.dataset.name = name;
+        card.innerHTML = `
+          <div class="pvc-check">✓</div>
+          <div class="pvc-avatar">${initial}</div>
+          <div class="pvc-name">${name}</div>
+          <div class="pvc-pts">${pts} pts</div>
+        `;
+        card.addEventListener('click', () => selectPlayer(card, name));
+        grid.appendChild(card);
+      });
+    }
+
+    showScreen('screen-vote');
+  }
+
+  function selectPlayer(card, name) {
+    if (document.getElementById('winner-announce').classList.contains('visible')) return;
+    document.querySelectorAll('.player-vote-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedPlayer = name;
+    document.getElementById('btn-confirm').disabled = false;
+  }
+
+  function confirmWinner() {
+    if (!selectedPlayer) return;
+
+    scores[selectedPlayer] = (scores[selectedPlayer] || 0) + 1;
+    renderScoreboard();
+
+    // Lock all cards, highlight winner
+    document.querySelectorAll('.player-vote-card').forEach(c => {
+      c.classList.add('locked');
+      c.classList.remove('selected');
+      if (c.dataset.name === selectedPlayer) c.classList.add('winner');
+    });
+
+    // Update pts display
+    document.querySelectorAll('.player-vote-card').forEach(c => {
+      c.querySelector('.pvc-pts').textContent = `${scores[c.dataset.name] || 0} pts`;
+    });
+
+    document.getElementById('wa-name').textContent = selectedPlayer;
+    document.getElementById('winner-announce').classList.add('visible');
+    document.getElementById('btn-confirm').disabled = true;
+
+    launchConfetti();
+
+    // Check if all powers are used up — if so, game over
+    const allUsed = powers.length > 0 && powers.every(p => p.used);
+    if (allUsed) {
+      setTimeout(() => showGameOver(), 2200);
+    } else {
+      document.getElementById('btn-back').classList.add('visible');
+    }
+  }
+
+  function showGameOver() {
+    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const topScore = sorted[0][1];
+    // Handle tie — find all players with top score
+    const winners = sorted.filter(([, pts]) => pts === topScore);
+    const winnerName = winners.map(([n]) => n).join(' & ');
+
+    document.getElementById('gameover-name').textContent = winnerName.toUpperCase();
+    document.getElementById('gameover-pts').textContent = `${topScore} POINT${topScore !== 1 ? 'S' : ''}`;
+
+    const rows = document.getElementById('gfs-rows');
+    rows.innerHTML = '';
+    sorted.forEach(([name, pts], i) => {
+      const row = document.createElement('div');
+      row.className = 'gfs-row' + (i === 0 ? ' top' : '');
+      const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : `${i + 1}. `;
+      row.innerHTML = `<span class="gfs-name">${medal}${name}</span><span class="gfs-pts">${pts} PTS</span>`;
+      rows.appendChild(row);
+    });
+
+    showScreen('screen-gameover');
+    launchConfetti();
+    setTimeout(launchConfetti, 600);
+    setTimeout(launchConfetti, 1200);
+  }
+
+  function playAgain() {
+    powers.forEach(p => p.used = false);
+    Object.keys(scores).forEach(k => scores[k] = 0);
+    window._importedPowers = null;
+
+    // Reset start screen
+    document.getElementById('import-zone').classList.remove('has-data');
+    document.getElementById('iz-icon').textContent = '📋';
+    document.getElementById('iz-title').textContent = 'IMPORT GOOGLE FORM CSV';
+    document.getElementById('iz-sub').textContent = 'Download your Google Form responses as a CSV\nand drop it here — or click to browse';
+    document.getElementById('roster-preview').classList.remove('visible');
+    document.getElementById('roster-list').innerHTML = '';
+    document.getElementById('btn-start-game').classList.remove('ready');
+    document.getElementById('start-hint').textContent = 'Import your CSV to unlock the game';
+    document.getElementById('start-hint').classList.remove('ready');
+    document.getElementById('csv-input').value = '';
+
+    showScreen('screen-start');
+  }
+
+  // ---- CONFETTI ----
+  function launchConfetti() {
+    const colors = ['#FFE600','#E3001B','#0057FF','#00C46A','#FF6B00','#ffffff'];
+    for (let i = 0; i < 80; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      el.style.cssText = `left:${Math.random()*100}vw;background:${color};width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.4}s;`;
+      document.body.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+  }
+
+  // ---- ADD POWER ----
+  function addPower() {
+    const nameEl = document.getElementById('input-power');
+    const personEl = document.getElementById('input-person');
+    const name = nameEl.value.trim();
+    const person = personEl.value.trim();
+    if (!name) { nameEl.focus(); return; }
+
+    powers.push({ name, person: person || 'Someone', used: false });
+    nameEl.value = ''; personEl.value = ''; nameEl.focus();
+
+    if (person && !(person in scores)) { scores[person] = 0; renderScoreboard(); }
+    renderPowerList(); drawWheel();
+  }
+
+  document.getElementById('input-power').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('input-person').focus(); });
+  document.getElementById('input-person').addEventListener('keydown', e => { if (e.key === 'Enter') addPower(); });
+
+  function renderPowerList() {
+    const ul = document.getElementById('power-list');
+    if (powers.length === 0) { ul.innerHTML = '<li class="empty-msg">No powers yet — add some above!</li>'; return; }
+    ul.innerHTML = '';
+    [...powers].reverse().forEach((p, ri) => {
+      const i = powers.length - 1 - ri;
+      const li = document.createElement('li');
+      li.className = 'power-item' + (p.used ? ' used' : '');
+      li.innerHTML = `<span class="pname">${p.used ? '✓ ' : ''}${p.name}</span><span class="person-tag">${p.person}</span><button class="del-btn" onclick="deletePower(${i})">✕</button>`;
+      ul.appendChild(li);
+    });
+  }
+
+  function deletePower(i) { powers.splice(i, 1); renderPowerList(); drawWheel(); }
+  function resetUsed() { powers.forEach(p => p.used = false); renderPowerList(); drawWheel(); }
+
+  // ---- CSV IMPORT ----
+  function handleCSV(event) {
+    const file = event.target.files[0];
+    console.log('handleCSV fired', file);
+    if (!file) { alert('No file selected'); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const text = e.target.result;
+      console.log('File contents:', text.substring(0, 200));
+      const lines = text.trim().split('\n');
+      console.log('Lines found:', lines.length);
+      const dataLines = lines.slice(1);
+      const imported = [];
+
+      dataLines.forEach(line => {
+        const cols = parseCSVLine(line);
+        console.log('Parsed cols:', cols);
+        if (cols.length < 2) return;
+
+        const looksLikeTimestamp = /^\d{1,2}[\/\-]/.test(cols[0].trim()) || /^\d{4}/.test(cols[0].trim());
+        let name, p1, p2, p3;
+        if (looksLikeTimestamp) {
+          name = cols[1]?.trim(); p1 = cols[2]?.trim(); p2 = cols[3]?.trim(); p3 = cols[4]?.trim();
+        } else {
+          name = cols[0]?.trim(); p1 = cols[1]?.trim(); p2 = cols[2]?.trim(); p3 = cols[3]?.trim();
+        }
+
+        if (!name) return;
+        [p1, p2, p3].forEach(power => { if (power) imported.push({ name, power }); });
+      });
+
+      console.log('Imported entries:', imported);
+
+      if (imported.length === 0) {
+        alert('No data found — check the console for details.');
+        document.getElementById('iz-title').textContent = 'NO DATA FOUND';
+        document.getElementById('iz-sub').textContent = 'Make sure the CSV has Name + 3 Power columns.';
+        return;
+      }
+
+      // Update import zone
+      document.getElementById('import-zone').classList.add('has-data');
+      document.getElementById('iz-icon').textContent = '✅';
+      document.getElementById('iz-title').textContent = 'CSV LOADED!';
+      document.getElementById('iz-sub').textContent = `${imported.length} entries from ${new Set(imported.map(i => i.name)).size} players`;
+
+      // Populate roster preview
+      document.getElementById('roster-count').textContent = imported.length;
+      const ul = document.getElementById('roster-list');
+      ul.innerHTML = '';
+      imported.forEach(({ name, power }) => {
+        const li = document.createElement('li');
+        li.className = 'roster-item';
+        li.innerHTML = `<span class="ri-name">${name}</span><span class="ri-power">${power}</span>`;
+        ul.appendChild(li);
+      });
+      document.getElementById('roster-preview').classList.add('visible');
+
+      // Unlock start button
+      document.getElementById('btn-start-game').classList.add('ready');
+      const hint = document.getElementById('start-hint');
+      hint.textContent = `${imported.length} powers ready — let's go!`;
+      hint.classList.add('ready');
+
+      window._importedPowers = imported;
+    };
+    reader.readAsText(file);
+  }
+
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+      else { current += ch; }
+    }
+    result.push(current);
+    return result;
+  }
+
+  function downloadTemplate() {
+    const csv = [
+      `"What is your name?","Superpower #1","Superpower #2","Superpower #3"`,
+      `"Alex","Super Speed","Invisibility","Time Travel"`,
+      `"Jordan","Flight","Telepathy","Super Strength"`,
+      `"Sam","Teleportation","Healing Factor","Laser Vision"`,
+    ].join('\n');
+
+    const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    const a = document.createElement('a');
+    a.href = encoded;
+    a.download = 'superpower_corruption_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+    const imported = window._importedPowers;
+    if (!imported || imported.length === 0) return;
+
+    powers = [];
+    scores = {};
+    imported.forEach(({ name, power }) => {
+      powers.push({ name: power, person: name, used: false });
+      if (!(name in scores)) scores[name] = 0;
+    });
+
+    renderPowerList();
+    renderScoreboard();
+    drawWheel();
+    showScreen('screen-wheel');
+  }
+
+  document.getElementById('csv-input').addEventListener('change', handleCSV);
+
+  // ---- INIT ----
+  drawWheel();
+</script>
+</body>
+</html>
