@@ -216,10 +216,11 @@
   }
   .score-item {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 9px; background: #1a1a1a; border-left: 3px solid var(--red);
+    padding: 12px 16px; background: #1a1a1a; border-left: 4px solid var(--red);
+    margin-bottom: 4px;
   }
-  .score-item .sname { font-size: 0.88rem; color: var(--white); }
-  .score-item .spts { font-family: 'Bangers', cursive; font-size: 1.15rem; color: var(--yellow); letter-spacing: 1px; }
+  .score-item .sname { font-size: 1.2rem; color: var(--white); font-weight: 700; }
+  .score-item .spts { font-family: 'Bangers', cursive; font-size: 2rem; color: var(--yellow); letter-spacing: 2px; }
 
   /* ---- POWER CARD OVERLAY ---- */
   .overlay {
@@ -700,23 +701,42 @@
       <div class="zigzag" style="margin-top:12px;"></div>
     </div>
 
-    <label class="import-zone" id="import-zone" for="csv-input">
-      <input type="file" accept=".csv" id="csv-input" style="display:none">
-      <div class="iz-icon" id="iz-icon">📋</div>
-      <div class="iz-title" id="iz-title">IMPORT GOOGLE FORM CSV</div>
-      <div class="iz-sub" id="iz-sub">Download your Google Form responses as a CSV<br>and click here to browse</div>
-    </label>
+    <div class="panel-box" data-label="ADD ENTRY" style="width:100%;">
+      <div class="add-form" style="margin-top:8px;">
+        <input type="text" id="start-person" placeholder="Name (e.g. Alex)" maxlength="20">
+        <input type="text" id="start-power" placeholder="Power (e.g. Super Speed)" maxlength="30">
+        <button class="btn-add" onclick="addStartEntry()">+ ADD</button>
+      </div>
+    </div>
 
     <div class="roster-preview" id="roster-preview">
-      <div class="roster-label">LOADED ROSTER — <span id="roster-count">0</span> ENTRIES</div>
+      <div class="roster-label">ROSTER — <span id="roster-count">0</span> ENTRIES</div>
       <ul class="roster-list" id="roster-list"></ul>
     </div>
 
     <div class="start-actions">
       <button class="btn-start-game" id="btn-start-game" onclick="startGame()">LET'S GO!</button>
-      <div class="start-hint" id="start-hint">Import your CSV to unlock the game</div>
-      <button class="btn-template" onclick="downloadTemplate()">⬇ Download CSV Template</button>
+      <div class="start-hint" id="start-hint">Add at least one entry to start</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+        <label class="btn-template" style="cursor:pointer;" for="csv-input">⬆ Import CSV</label>
+        <input type="file" id="csv-input" accept=".csv" style="display:none;">
+        <button class="btn-template" onclick="openPasteModal()">📋 Paste CSV</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== PASTE MODAL ===== -->
+<div class="overlay" id="overlay-paste">
+  <div class="power-card" style="max-width:560px;">
+    <div class="card-eyebrow">📋 PASTE YOUR CSV</div>
+    <div style="font-family:'Permanent Marker',cursive;color:#aaa;font-size:0.82rem;letter-spacing:2px;margin-bottom:14px;">Open your Google Sheet, select all cells, copy, then paste below</div>
+    <textarea id="paste-input" style="width:100%;height:160px;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:'Oswald',sans-serif;font-size:0.9rem;padding:10px;outline:none;resize:vertical;line-height:1.4;" placeholder="Paste CSV contents here..."></textarea>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="btn-continue" onclick="processPaste()">LOAD IT →</button>
+      <button class="btn-skip" onclick="closePasteModal()">Cancel</button>
+    </div>
+    <div id="paste-error" style="color:var(--red);font-size:0.82rem;margin-top:10px;display:none;"></div>
   </div>
 </div>
 
@@ -739,25 +759,12 @@
         <button class="spin-btn" id="spin-btn" onclick="spinWheel()">SPIN!</button>
         <button class="btn-ghost" onclick="resetUsed()">Reset Used</button>
       </div>
+      <button class="btn-skip" style="margin-top:8px;" onclick="quitGame()">✕ Quit Game</button>
     </div>
 
     <div class="side-panel">
-      <div class="panel-box" data-label="ADD POWER">
-        <div class="add-form">
-          <input type="text" id="input-power" placeholder="Power (e.g. Super Speed)" maxlength="30">
-          <input type="text" id="input-person" placeholder="Chosen by (e.g. Alex)" maxlength="20">
-          <button class="btn-add" onclick="addPower()">+ ADD TO WHEEL</button>
-        </div>
-      </div>
-
-      <div class="panel-box" data-label="POWERS">
-        <ul class="power-list" id="power-list">
-          <li class="empty-msg">No powers yet — add some above!</li>
-        </ul>
-      </div>
-
-      <div class="panel-box" data-label="SCOREBOARD">
-        <ul class="score-list" id="score-list">
+      <div class="panel-box" data-label="SCOREBOARD" style="flex:1;">
+        <ul class="score-list" id="score-list" style="max-height:none;">
           <li class="empty-msg">No players yet</li>
         </ul>
       </div>
@@ -840,13 +847,13 @@
 <script>
   let powers = [];
   let scores = {};
+  let startEntries = [];
   let isSpinning = false;
   let currentAngle = 0;
   let currentPower = null;
   let selectedPlayer = null;
 
-  const canvas = document.getElementById('wheel');
-  const ctx = canvas.getContext('2d');
+  let canvas, ctx;
   const SIZE = 480, CX = SIZE / 2, CY = SIZE / 2;
 
   const COLORS = [
@@ -1064,23 +1071,11 @@
     setTimeout(launchConfetti, 1200);
   }
 
-  function playAgain() {
-    powers.forEach(p => p.used = false);
-    Object.keys(scores).forEach(k => scores[k] = 0);
-    window._importedPowers = null;
-
-    // Reset start screen
-    document.getElementById('import-zone').classList.remove('has-data');
-    document.getElementById('iz-icon').textContent = '📋';
-    document.getElementById('iz-title').textContent = 'IMPORT GOOGLE FORM CSV';
-    document.getElementById('iz-sub').textContent = 'Download your Google Form responses as a CSV\nand drop it here — or click to browse';
-    document.getElementById('roster-preview').classList.remove('visible');
-    document.getElementById('roster-list').innerHTML = '';
-    document.getElementById('btn-start-game').classList.remove('ready');
-    document.getElementById('start-hint').textContent = 'Import your CSV to unlock the game';
-    document.getElementById('start-hint').classList.remove('ready');
-    document.getElementById('csv-input').value = '';
-
+  function quitGame() {
+    powers = [];
+    scores = {};
+    startEntries = [];
+    renderStartRoster();
     showScreen('screen-start');
   }
 
@@ -1097,26 +1092,9 @@
     }
   }
 
-  // ---- ADD POWER ----
-  function addPower() {
-    const nameEl = document.getElementById('input-power');
-    const personEl = document.getElementById('input-person');
-    const name = nameEl.value.trim();
-    const person = personEl.value.trim();
-    if (!name) { nameEl.focus(); return; }
-
-    powers.push({ name, person: person || 'Someone', used: false });
-    nameEl.value = ''; personEl.value = ''; nameEl.focus();
-
-    if (person && !(person in scores)) { scores[person] = 0; renderScoreboard(); }
-    renderPowerList(); drawWheel();
-  }
-
-  document.getElementById('input-power').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('input-person').focus(); });
-  document.getElementById('input-person').addEventListener('keydown', e => { if (e.key === 'Enter') addPower(); });
-
   function renderPowerList() {
     const ul = document.getElementById('power-list');
+    if (!ul) return;
     if (powers.length === 0) { ul.innerHTML = '<li class="empty-msg">No powers yet — add some above!</li>'; return; }
     ul.innerHTML = '';
     [...powers].reverse().forEach((p, ri) => {
@@ -1131,74 +1109,96 @@
   function deletePower(i) { powers.splice(i, 1); renderPowerList(); drawWheel(); }
   function resetUsed() { powers.forEach(p => p.used = false); renderPowerList(); drawWheel(); }
 
+  function renderScoreboard() {
+    const ul = document.getElementById('score-list');
+    const players = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    if (players.length === 0) { ul.innerHTML = '<li class="empty-msg">No players yet</li>'; return; }
+    ul.innerHTML = '';
+    players.forEach(([name, pts], i) => {
+      const li = document.createElement('li');
+      li.className = 'score-item';
+      const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+      li.innerHTML = `<span class="sname">${medal}${name}</span><span class="spts">${pts} PTS</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  // ---- PASTE MODAL ----
+  function openPasteModal() {
+    document.getElementById('paste-input').value = '';
+    document.getElementById('paste-error').style.display = 'none';
+    document.getElementById('overlay-paste').classList.add('visible');
+    setTimeout(() => document.getElementById('paste-input').focus(), 300);
+  }
+
+  function closePasteModal() {
+    document.getElementById('overlay-paste').classList.remove('visible');
+  }
+
+  function processPaste() {
+    const text = document.getElementById('paste-input').value.trim();
+    if (!text) { showPasteError('Nothing pasted yet.'); return; }
+    const result = parseCSVText(text);
+    if (result.length === 0) { showPasteError('No valid entries found. Make sure columns are: Name, Power 1, Power 2, Power 3'); return; }
+    loadEntries(result);
+    closePasteModal();
+  }
+
+  function showPasteError(msg) {
+    const el = document.getElementById('paste-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
   // ---- CSV IMPORT ----
-  function handleCSV(event) {
-    const file = event.target.files[0];
-    console.log('handleCSV fired', file);
-    if (!file) { alert('No file selected'); return; }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const text = e.target.result;
-      console.log('File contents:', text.substring(0, 200));
-      const lines = text.trim().split('\n');
-      console.log('Lines found:', lines.length);
-      const dataLines = lines.slice(1);
-      const imported = [];
-
-      dataLines.forEach(line => {
-        const cols = parseCSVLine(line);
-        console.log('Parsed cols:', cols);
-        if (cols.length < 2) return;
-
-        const looksLikeTimestamp = /^\d{1,2}[\/\-]/.test(cols[0].trim()) || /^\d{4}/.test(cols[0].trim());
-        let name, p1, p2, p3;
-        if (looksLikeTimestamp) {
-          name = cols[1]?.trim(); p1 = cols[2]?.trim(); p2 = cols[3]?.trim(); p3 = cols[4]?.trim();
-        } else {
-          name = cols[0]?.trim(); p1 = cols[1]?.trim(); p2 = cols[2]?.trim(); p3 = cols[3]?.trim();
-        }
-
-        if (!name) return;
-        [p1, p2, p3].forEach(power => { if (power) imported.push({ name, power }); });
+  window.addEventListener('load', function() {
+    const csvEl = document.getElementById('csv-input');
+    if (csvEl) {
+      csvEl.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const result = parseCSVText(ev.target.result);
+          if (result.length === 0) { alert('No valid entries found. Check your CSV format.'); return; }
+          loadEntries(result);
+        };
+        reader.onerror = function() { alert('Error reading file.'); };
+        reader.readAsText(file);
       });
+    }
+    const sp = document.getElementById('start-person');
+    const sw = document.getElementById('start-power');
+    if (sp) sp.addEventListener('keydown', e => { if (e.key === 'Enter') sw && sw.focus(); });
+    if (sw) sw.addEventListener('keydown', e => { if (e.key === 'Enter') addStartEntry(); });
+  });
 
-      console.log('Imported entries:', imported);
+  // ---- SHARED CSV PARSER ----
+  function parseCSVText(text) {
+    const lines = text.trim().split('\n');
+    const dataLines = lines.slice(1); // skip header
+    const imported = [];
 
-      if (imported.length === 0) {
-        alert('No data found — check the console for details.');
-        document.getElementById('iz-title').textContent = 'NO DATA FOUND';
-        document.getElementById('iz-sub').textContent = 'Make sure the CSV has Name + 3 Power columns.';
-        return;
+    // Auto-detect delimiter — tabs mean a Google Sheets paste, commas mean a CSV file
+    const delimiter = lines[0].includes('\t') ? '\t' : ',';
+
+    dataLines.forEach(line => {
+      const cols = delimiter === '\t'
+        ? line.split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
+        : parseCSVLine(line);
+
+      if (cols.length < 2) return;
+      const looksLikeTimestamp = /^\d{1,2}[\/\-]/.test(cols[0].trim()) || /^\d{4}/.test(cols[0].trim());
+      let name, p1, p2, p3;
+      if (looksLikeTimestamp) {
+        name = cols[1]?.trim(); p1 = cols[2]?.trim(); p2 = cols[3]?.trim(); p3 = cols[4]?.trim();
+      } else {
+        name = cols[0]?.trim(); p1 = cols[1]?.trim(); p2 = cols[2]?.trim(); p3 = cols[3]?.trim();
       }
-
-      // Update import zone
-      document.getElementById('import-zone').classList.add('has-data');
-      document.getElementById('iz-icon').textContent = '✅';
-      document.getElementById('iz-title').textContent = 'CSV LOADED!';
-      document.getElementById('iz-sub').textContent = `${imported.length} entries from ${new Set(imported.map(i => i.name)).size} players`;
-
-      // Populate roster preview
-      document.getElementById('roster-count').textContent = imported.length;
-      const ul = document.getElementById('roster-list');
-      ul.innerHTML = '';
-      imported.forEach(({ name, power }) => {
-        const li = document.createElement('li');
-        li.className = 'roster-item';
-        li.innerHTML = `<span class="ri-name">${name}</span><span class="ri-power">${power}</span>`;
-        ul.appendChild(li);
-      });
-      document.getElementById('roster-preview').classList.add('visible');
-
-      // Unlock start button
-      document.getElementById('btn-start-game').classList.add('ready');
-      const hint = document.getElementById('start-hint');
-      hint.textContent = `${imported.length} powers ready — let's go!`;
-      hint.classList.add('ready');
-
-      window._importedPowers = imported;
-    };
-    reader.readAsText(file);
+      if (!name) return;
+      [p1, p2, p3].forEach(power => { if (power) imported.push({ name, power }); });
+    });
+    return imported;
   }
 
   function parseCSVLine(line) {
@@ -1214,49 +1214,86 @@
     return result;
   }
 
-  function downloadTemplate() {
-    const csv = [
-      `"What is your name?","Superpower #1","Superpower #2","Superpower #3"`,
-      `"Alex","Super Speed","Invisibility","Time Travel"`,
-      `"Jordan","Flight","Telepathy","Super Strength"`,
-      `"Sam","Teleportation","Healing Factor","Laser Vision"`,
-    ].join('\n');
-
-    const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    const a = document.createElement('a');
-    a.href = encoded;
-    a.download = 'superpower_corruption_template.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  function loadEntries(imported) {
+    imported.forEach(({ name, power }) => {
+      startEntries.push({ name, power });
+    });
+    renderStartRoster();
   }
-    const imported = window._importedPowers;
-    if (!imported || imported.length === 0) return;
 
+  // ---- START SCREEN ----
+
+  function addStartEntry() {
+    const personEl = document.getElementById('start-person');
+    const powerEl = document.getElementById('start-power');
+    const name = personEl.value.trim();
+    const power = powerEl.value.trim();
+    if (!name) { personEl.focus(); return; }
+    if (!power) { powerEl.focus(); return; }
+
+    startEntries.push({ name, power });
+    personEl.value = '';
+    powerEl.value = '';
+    personEl.focus();
+    renderStartRoster();
+  }
+
+  function renderStartRoster() {
+    const ul = document.getElementById('roster-list');
+    const preview = document.getElementById('roster-preview');
+    const btn = document.getElementById('btn-start-game');
+    const hint = document.getElementById('start-hint');
+
+    document.getElementById('roster-count').textContent = startEntries.length;
+
+    if (startEntries.length === 0) {
+      preview.classList.remove('visible');
+      btn.classList.remove('ready');
+      hint.textContent = 'Add at least one entry to start';
+      hint.classList.remove('ready');
+      return;
+    }
+
+    preview.classList.add('visible');
+    ul.innerHTML = '';
+    startEntries.forEach((entry, i) => {
+      const li = document.createElement('li');
+      li.className = 'roster-item';
+      li.innerHTML = `
+        <span class="ri-power" style="flex:1;">${entry.power}</span>
+        <button style="background:none;border:none;color:#555;cursor:pointer;font-size:0.8rem;padding:0 4px;flex-shrink:0;" onclick="removeStartEntry(${i})">✕</button>
+      `;
+      ul.appendChild(li);
+    });
+
+    btn.classList.add('ready');
+    hint.textContent = `${startEntries.length} entr${startEntries.length === 1 ? 'y' : 'ies'} ready — hit Let's Go!`;
+    hint.classList.add('ready');
+  }
+
+  function removeStartEntry(i) {
+    startEntries.splice(i, 1);
+    renderStartRoster();
+  }
+
+  function startGame() {
+    if (startEntries.length === 0) return;
     powers = [];
     scores = {};
-    imported.forEach(({ name, power }) => {
+    startEntries.forEach(({ name, power }) => {
       powers.push({ name: power, person: name, used: false });
       if (!(name in scores)) scores[name] = 0;
     });
-
+    showScreen('screen-wheel');
+    canvas = document.getElementById('wheel');
+    ctx = canvas.getContext('2d');
     renderPowerList();
     renderScoreboard();
     drawWheel();
-    showScreen('screen-wheel');
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
-    const csvInput = document.getElementById('csv-input');
-    if (csvInput) {
-      csvInput.addEventListener('change', handleCSV);
-    } else {
-      alert('csv-input element not found!');
-    }
-  });
-
   // ---- INIT ----
-  drawWheel();
+  // drawWheel is called by startGame once the wheel screen is visible
 </script>
 </body>
 </html>
